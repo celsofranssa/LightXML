@@ -8,40 +8,73 @@ from torch.utils.data import Dataset
 
 import tqdm
 
-def createDataCSV(dataset):
+def load_ids(dataset, fold_idx, split):
+    with open(f"./resource/dataset/{dataset}/fold_{fold_idx}/{split}.pkl", "rb") as ids_file:
+        return pickle.load(ids_file)
+
+
+def prepare_data(dataset, fold_idx, split):
+    ids = load_ids(dataset, fold_idx, split)
+    with open(f"./resource/dataset/{dataset}/samples.pkl", "rb") as samples_file:
+        samples_df = pd.DataFrame(pickle.load(samples_file))
+    samples_df = samples_df[samples_df["idx"].isin(ids)]
+    # if split == "train":
+    #     checkpoint_sparse_samples(samples_df, dataset)
+    checkpoint_samples(samples_df, dataset, split)
+
+# def checkpoint_sparse_samples(samples_df, dataset):
+#     logger.info('Preprocessing sparse features')
+#     X = TfidfVectorizer().fit_transform(samples_df["text"])
+#     y = MultiLabelBinarizer(sparse_output=True).fit_transform(samples_df["labels_ids"])
+#     dump_svmlight_file(X, y=y, f=f"resource/dataset/{dataset}/train_v1.txt", multilabel=True)
+
+
+def checkpoint_samples(samples_df, dataset, split):
+    print('Preprocessing raw texts.')
+    dataset_dir = f"./resource/dataset/{dataset}/"
+    samples_df["text"] = samples_df["text"].apply(lambda text: text.replace("\n", " "))
+    samples_df["text"].to_csv(f"{dataset_dir}{split}_raw_texts.txt", header=False, index=False)
+
+    samples_df["labels_ids"] = samples_df["labels_ids"].apply(lambda labels_ids: " ".join([str(idx) for idx in labels_ids]))
+    samples_df["labels_ids"].to_csv(f"{dataset_dir}{split}_labels.txt", header=False, index=False)
+
+def createDataCSV(dataset, fold):
     labels = []
     texts = []
     dataType = []
     label_map = {}
 
-    name_map = {'wiki31k': 'Wiki10-31K',
-                'wiki500k': 'Wiki-500K',
-                'amazoncat13k': 'AmazonCat-13K',
-                'amazon670k': 'Amazon-670K',
-                'eurlex4k': 'Eurlex-4K'}
+    # name_map = {'Wiki-31k': 'Wiki10-31k',
+    #             'Amazon-670k': 'Amazon-670K',
+    #             'eurlex4k': 'Eurlex-4K'}
+    #
+    # assert dataset in name_map
+    # dataset = name_map[dataset]
 
-    assert dataset in name_map
-    dataset = name_map[dataset]
+    print('Preparing splits')
+    prepare_data(dataset, fold, "train")
+    prepare_data(dataset, fold, "test")
 
-    fext = '_texts.txt' if dataset == 'Eurlex-4K' else '_raw_texts.txt'
-    with open(f'./data/{dataset}/train{fext}') as f:
+    #fext = '_texts.txt' if dataset == 'Eurlex-4K' else '_raw_texts.txt'
+    data_dir = f"./resource/dataset/{dataset}/"
+    with open(f"{data_dir}train_raw_texts.txt") as f:
         for i in tqdm.tqdm(f):
             texts.append(i.replace('\n', ''))
             dataType.append('train')
 
-    with open(f'./data/{dataset}/test{fext}') as f:
+    with open(f'{data_dir}test_raw_texts.txt') as f:
         for i in tqdm.tqdm(f):
             texts.append(i.replace('\n', ''))
             dataType.append('test')
 
-    with open(f'./data/{dataset}/train_labels.txt') as f:
+    with open(f'{data_dir}train_labels.txt') as f:
         for i in tqdm.tqdm(f):
             for l in i.replace('\n', '').split():
                 label_map[l] = 0
             labels.append(i.replace('\n', ''))
 
 
-    with open(f'./data/{dataset}/test_labels.txt') as f:
+    with open(f'{data_dir}test_labels.txt') as f:
         print(len(label_map))
         for i in tqdm.tqdm(f):
             for l in i.replace('\n', '').split():

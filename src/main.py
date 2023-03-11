@@ -25,7 +25,7 @@ def load_group(dataset, group_tree=0):
 def train(model, df, label_map):
     tokenizer = model.get_tokenizer()
 
-    if args.dataset in ['wiki500k', 'amazon670k']:
+    if args.dataset in ['Wiki-500k', 'Amazon-670k']:
         group_y = load_group(args.dataset, args.group_y_group)
         train_d = MDataset(df, 'train', tokenizer, label_map, args.max_len, group_y=group_y,
                            candidates_num=args.group_y_candidate_num)#, token_type_ids=token_type_ids)
@@ -76,7 +76,7 @@ def train(model, df, label_map):
         g_p1, g_p3, g_p5, p1, p3, p5 = ev_result
 
         log_str = f'{epoch:>2}: {p1:.4f}, {p3:.4f}, {p5:.4f}, train_loss:{train_loss}'
-        if args.dataset in ['wiki500k', 'amazon670k']:
+        if args.dataset in ['Wiki-500k', 'Amazon-670k']:
             log_str += f' {g_p1:.4f}, {g_p3:.4f}, {g_p5:.4f}'
         if args.valid:
             log_str += ' valid'
@@ -84,7 +84,7 @@ def train(model, df, label_map):
 
         if max_only_p5 < p5:
             max_only_p5 = p5
-            model.save_model(f'models/model-{get_exp_name()}.bin')
+            model.save_model(f'./resource/model_checkpoint/model-{get_exp_name()}.bin')
 
         if epoch >= args.epoch + 5 and max_only_p5 != p5:
             break
@@ -92,7 +92,7 @@ def train(model, df, label_map):
 
 def get_exp_name():
     name = [args.dataset, '' if args.bert == 'bert-base' else args.bert]
-    if args.dataset in ['wiki500k', 'amazon670k']:
+    if args.dataset in ['Wiki-500k', 'Amazon-670k']:
         name.append('t'+str(args.group_y_group))
 
     return '_'.join([i for i in name if i != ''])
@@ -112,6 +112,7 @@ parser.add_argument('--lr', type=float, required=False, default=0.0001)
 parser.add_argument('--seed', type=int, required=False, default=6088)
 parser.add_argument('--epoch', type=int, required=False, default=20)
 parser.add_argument('--dataset', type=str, required=False, default='eurlex4k')
+parser.add_argument('--fold', type=int, required=False, default=0)
 parser.add_argument('--bert', type=str, required=False, default='bert-base')
 
 parser.add_argument('--max_len', type=int, required=False, default=512)
@@ -142,7 +143,7 @@ if __name__ == '__main__':
     LOG = Logger('log_'+get_exp_name())
     
     print(f'load {args.dataset} dataset...')
-    df, label_map = createDataCSV(args.dataset)
+    df, label_map = createDataCSV(args.dataset, args.fold)
     if args.valid:
         train_df, valid_df = train_test_split(df[df['dataType'] == 'train'],
                                               test_size=4000,
@@ -153,7 +154,7 @@ if __name__ == '__main__':
     print(f'load {args.dataset} dataset with '
           f'{len(df[df.dataType =="train"])} train {len(df[df.dataType =="test"])} test with {len(label_map)} labels done')
 
-    if args.dataset in ['wiki500k', 'amazon670k']:
+    if args.dataset in ['Wiki-500k', 'Amazon-670k']:
         group_y = load_group(args.dataset, args.group_y_group)
         _group_y = []
         for idx, labels in enumerate(group_y):
@@ -173,7 +174,7 @@ if __name__ == '__main__':
                          update_count=args.update_count,
                          use_swa=args.swa, swa_warmup_epoch=args.swa_warmup, swa_update_step=args.swa_step)
 
-    if args.eval_model and args.dataset in ['wiki500k', 'amazon670k']:
+    if args.eval_model and args.dataset in ['Wiki-500k', 'Amazon-670k']:
         print(f'load models/model-{get_exp_name()}.bin')
         testloader = DataLoader(MDataset(df, 'test', model.get_fast_tokenizer(), label_map, args.max_len, 
                                          candidates_num=args.group_y_candidate_num),
@@ -185,15 +186,15 @@ if __name__ == '__main__':
                                           candidates_num=args.group_y_candidate_num),
                                  batch_size=256, num_workers=0, 
                             shuffle=False)
-        model.load_state_dict(torch.load(f'models/model-{get_exp_name()}.bin'))
+        model.load_state_dict(torch.load(f'./resource/model_checkpoint/model-{get_exp_name()}.bin'))
         model = model.cuda()
 
         print(len(df[df.dataType == 'test']))
         model.one_epoch(0, validloader, None, mode='eval')
 
         pred_scores, pred_labels = model.one_epoch(0, testloader, None, mode='test')
-        np.save(f'results/{get_exp_name()}-labels.npy', np.array(pred_labels))
-        np.save(f'results/{get_exp_name()}-scores.npy', np.array(pred_scores))
+        np.save(f'./resource/predict/{get_exp_name()}-labels.npy', np.array(pred_labels))
+        np.save(f'./resource/predict/results/{get_exp_name()}-scores.npy', np.array(pred_scores))
         sys.exit(0)
 
     train(model, df, label_map)

@@ -193,8 +193,8 @@ if __name__ == '__main__':
         model.one_epoch(0, validloader, None, mode='eval')
 
         pred_scores, pred_labels = model.one_epoch(0, testloader, None, mode='test')
-        np.save(f'./resource/predict/{get_exp_name()}-labels.npy', np.array(pred_labels))
-        np.save(f'./resource/predict/results/{get_exp_name()}-scores.npy', np.array(pred_scores))
+        np.save(f'./resource/prediction/{get_exp_name()}-labels.npy', np.array(pred_labels))
+        np.save(f'./resource/prediction/{get_exp_name()}-scores.npy', np.array(pred_scores))
         sys.exit(0)
 
     train(model, df, label_map)

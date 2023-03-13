@@ -12,10 +12,12 @@ args = parser.parse_args()
 
 if __name__ == '__main__':
     df, label_map = createDataCSV(args.dataset)
+    num_samples, num_labels = df.shape[0], len(label_map)
     print(f'load {args.dataset} dataset with '
           f'{len(df[df.dataType =="train"])} train {len(df[df.dataType =="test"])} test with {len(label_map)} labels done')
 
     xmc_models = []
+    predictions = torch.zeros(num_samples, num_labels)
     predicts = []
     berts = ['bert-base', 'roberta', 'xlnet']
 
@@ -25,17 +27,21 @@ if __name__ == '__main__':
 
         model = LightXML(n_labels=len(label_map), bert=berts[index])
 
-        print(f'models/model-model_name.bin')
-        model.load_state_dict(torch.load(f'models/model-{model_name}.bin'))
+        print(f'Loading {model_name}')
+        model.load_state_dict(torch.load(f'./resource/model_checkpoint/model-{model_name}.bin'))
 
         tokenizer = model.get_tokenizer()
-        test_d = MDataset(df, 'test', tokenizer, label_map, 128 if args.dataset == 'amazoncat13k' and berts[index] == 'xlnent' else 512)
+        test_d = MDataset(df, 'test', tokenizer, label_map, 128 if args.dataset == 'Amazoncat-13k' and berts[index] == 'xlnent' else 512)
         testloader = DataLoader(test_d, batch_size=16, num_workers=0,
                                 shuffle=False)
 
         model.cuda()
-        predicts.append(torch.Tensor(model.one_epoch(0, testloader, None, mode='test')[0]))
-        xmc_models.append(model)
+        predicts.append(
+            torch.Tensor(model.one_epoch(0, testloader, None, mode='test')[0])
+        )
+        predictions = predictions + torch.sigmoid(torch.Tensor(model.one_epoch(0, testloader, None, mode='test')[0]))
+        #np.save(f'./resource/prediction/{model_name}_{args.dataset}_labels_scores.npy', predicts[-1].cpu().numpy())
+        #xmc_models.append(model)
 
     df = df[df.dataType == 'test']
     total = len(df)
@@ -60,6 +66,6 @@ if __name__ == '__main__':
         p3 = acc3[i] / total / 3
         p5 = acc5[i] / total / 5
 
-        with open('./results/{args.dataset}', 'a') as f:
+        with open(f'./resource/result/{args.dataset}', 'a') as f:
             print(f'{name} {p1} {p3} {p5}', file=f)
             print(f'{name} {p1} {p3} {p5}')

@@ -38,7 +38,7 @@ def checkpoint_samples(samples_df, dataset, split):
     samples_df["labels_ids"] = samples_df["labels_ids"].apply(lambda labels_ids: " ".join([str(idx) for idx in labels_ids]))
     samples_df["labels_ids"].to_csv(f"{dataset_dir}{split}_labels.txt", header=False, index=False)
 
-def createDataCSV(dataset, fold):
+def createDataCSV(dataset, fold, eval=False):
     labels = []
     texts = []
     dataType = []
@@ -51,9 +51,10 @@ def createDataCSV(dataset, fold):
     # assert dataset in name_map
     # dataset = name_map[dataset]
 
-    print('Preparing splits')
-    prepare_data(dataset, fold, "train")
-    prepare_data(dataset, fold, "test")
+    if not eval:
+        print('Preparing splits')
+        prepare_data(dataset, fold, "train")
+        prepare_data(dataset, fold, "test")
 
     #fext = '_texts.txt' if dataset == 'Eurlex-4K' else '_raw_texts.txt'
     data_dir = f"./resource/dataset/{dataset}/"

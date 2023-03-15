@@ -7,11 +7,11 @@ from model import LightXML
 
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument('--dataset', type=str, required=False, default='eurlex4k')
+parser.add_argument('--dataset', type=str, required=False, default='Eurlex-4k')
 args = parser.parse_args()
 
 if __name__ == '__main__':
-    df, label_map = createDataCSV(args.dataset)
+    df, label_map = createDataCSV(args.dataset, fold=0, eval=True)
     num_samples, num_labels = df.shape[0], len(label_map)
     print(f'load {args.dataset} dataset with '
           f'{len(df[df.dataType =="train"])} train {len(df[df.dataType =="test"])} test with {len(label_map)} labels done')
@@ -19,6 +19,7 @@ if __name__ == '__main__':
     xmc_models = []
     predictions = torch.zeros(num_samples, num_labels)
     predicts = []
+    predicted_labels = []
     berts = ['bert-base', 'roberta', 'xlnet']
 
     for index in range(len(berts)):
@@ -39,7 +40,7 @@ if __name__ == '__main__':
         predicts.append(
             torch.Tensor(model.one_epoch(0, testloader, None, mode='test')[0])
         )
-        predictions = predictions + torch.sigmoid(torch.Tensor(model.one_epoch(0, testloader, None, mode='test')[0]))
+        #predictions = predictions + torch.sigmoid(torch.Tensor(model.one_epoch(0, testloader, None, mode='test')[0]))
         #np.save(f'./resource/prediction/{model_name}_{args.dataset}_labels_scores.npy', predicts[-1].cpu().numpy())
         #xmc_models.append(model)
 
@@ -61,11 +62,16 @@ if __name__ == '__main__':
             acc3[i] += len(set(logit[:3]) & true_labels)
             acc5[i] += len(set(logit[:5]) & true_labels)
 
+        predicted_labels.append(logits[-1])
+
+    np.save(f'./resource/prediction/LightXML_{args.dataset}.npy', predicted_labels)
+
+
     for i, name in enumerate(berts + ['all']):
         p1 = acc1[i] / total
         p3 = acc3[i] / total / 3
         p5 = acc5[i] / total / 5
 
         with open(f'./resource/result/{args.dataset}', 'a') as f:
-            print(f'{name} {p1} {p3} {p5}', file=f)
+            #print(f'{name} {p1} {p3} {p5}', file=f)
             print(f'{name} {p1} {p3} {p5}')

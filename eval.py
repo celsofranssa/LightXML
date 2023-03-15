@@ -5,6 +5,8 @@ import pandas as pd
 import scipy
 from ranx import evaluate, Run, Qrels
 
+from src.dataset import createDataCSV
+
 
 def _get_metrics(metrics, thresholds):
     threshold_metrics = []
@@ -62,16 +64,17 @@ def get_labels_map(dataset):
         return pickle.load(labels_map_file)
 
 
-def get_ranking(scores, texts_map, text_cls, label_cls, cls):
+def get_ranking(predicted_labels, texts_map, text_cls, label_cls, cls):
     ranking = {}
     print("Ranking")
-    for idx in range(0, scores.shape[0]):
-        text_idx = texts_map[idx]
+    for i in range(0, predicted_labels.shape[0]):
+        text_idx = texts_map[i]
         if cls in text_cls[text_idx]:
             labels_scores = {}
-            for label_idx in range(0, scores.shape[1]):
-                if cls in label_cls[int(label_idx)]:
-                    labels_scores[f"label_{label_idx}"] = scores[idx, label_idx]
+            for j in range(0, predicted_labels.shape[1]):
+                label_idx = predicted_labels[i][j]
+                if cls in label_cls[label_idx]:
+                    labels_scores[f"label_{label_idx}"] = 1.0 / (j+1)
             if len(labels_scores) > 0:
                 ranking[f"text_{text_idx}"] = labels_scores
             else:
@@ -115,7 +118,9 @@ def get_ic(model, dataset):
 
 
 def get_result(dataset, model, folds):
-    metrics = _get_metrics(["mrr", "recall", "ndcg", "precision", "hit_rate"], [1, 5, 10])
+
+    metrics = _get_metrics(["precision"], [1, 5, 10])
+    #metrics = _get_metrics(["mrr", "recall", "ndcg", "precision", "hit_rate"], [1, 5, 10])
     relevance_map = _load_relevance_map(dataset)
 
     # cls
@@ -127,12 +132,12 @@ def get_result(dataset, model, folds):
     for fold_idx in folds:
         rankings[fold_idx] = {}
 
-        scores = load_prediction(dataset, fold_idx)
+        predicted_labels = load_prediction(dataset, fold_idx)
         texts_map = get_texts_map(dataset, fold_idx, split="test")
 
         for cls in ["all", "head", "tail"]:
             print(f"Evaluating on {cls} labels on fold {fold_idx}")
-            ranking = get_ranking(scores, texts_map, text_cls, label_cls, cls)
+            ranking = get_ranking(predicted_labels, texts_map, text_cls, label_cls, cls)
             print(f"Ranking size: {len(ranking)}")
             result = evaluate(
                 Qrels(

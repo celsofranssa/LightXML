@@ -85,13 +85,13 @@ args = parser.parse_args()
 
 
 def load_ids(dataset, fold_idx, split):
-    with open(f"resource/dataset/{dataset}/fold_{fold_idx}/{split}.pkl", "rb") as ids_file:
+    with open(f"./resource/dataset/{dataset}/fold_{fold_idx}/{split}.pkl", "rb") as ids_file:
         return pickle.load(ids_file)
 
 
 def prepare_data(dataset, fold_idx, split):
     ids = load_ids(dataset, fold_idx, split)
-    with open(f"resource/dataset/{dataset}/samples.pkl", "rb") as samples_file:
+    with open(f"./resource/dataset/{dataset}/samples.pkl", "rb") as samples_file:
         samples_df = pd.DataFrame(pickle.load(samples_file))
     samples_df = samples_df[samples_df["idx"].isin(ids)]
     if split == "train":
@@ -103,12 +103,12 @@ def checkpoint_sparse_samples(samples_df, dataset):
     print('Preprocessing sparse features')
     X = TfidfVectorizer().fit_transform(samples_df["text"])
     y = MultiLabelBinarizer(sparse_output=True).fit_transform(samples_df["labels_ids"])
-    dump_svmlight_file(X, y=y, f=f"resource/dataset/{dataset}/train_v1.txt", multilabel=True)
+    dump_svmlight_file(X, y=y, f=f"./resource/dataset/{dataset}/train_v1.txt", multilabel=True)
 
 
 def checkpoint_samples(samples_df, dataset, split):
     print('Preprocessing raw texts.')
-    dataset_dir = f"resource/dataset/{dataset}/"
+    dataset_dir = f"./resource/dataset/{dataset}/"
     samples_df["text"] = samples_df["text"].apply(lambda text: text.replace("\n", " "))
     samples_df["text"].to_csv(f"{dataset_dir}{split}_raw_texts.txt", header=False, index=False)
 

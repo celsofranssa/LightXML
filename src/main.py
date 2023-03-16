@@ -17,10 +17,11 @@ from dataset import MDataset, createDataCSV
 from log import Logger
 
 def load_group(dataset, group_tree=0):
-    if dataset == 'wiki500k':
-        return np.load(f'./data/Wiki-500K/label_group{group_tree}.npy', allow_pickle=True)
-    elif dataset == 'amazon670k':
-        return np.load(f'./data/Amazon-670K/label_group{group_tree}.npy', allow_pickle=True)
+    return np.load(f'./data/{dataset}/label_group{group_tree}.npy', allow_pickle=True)
+    # if dataset == 'wiki500k':
+    #     return np.load(f'./data/Wiki-500K/label_group{group_tree}.npy', allow_pickle=True)
+    # elif dataset == 'amazon670k':
+    #     return np.load(f'./data/Amazon-670K/label_group{group_tree}.npy', allow_pickle=True)
 
 def train(model, df, label_map):
     tokenizer = model.get_tokenizer()

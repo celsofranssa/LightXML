@@ -85,29 +85,43 @@ args = parser.parse_args()
 
 
 def load_ids(dataset, fold_idx, split):
-    with open(f"./resource/dataset/{dataset}/fold_{fold_idx}/{split}.pkl", "rb") as ids_file:
+    with open(f"resource/dataset/{dataset}/fold_{fold_idx}/{split}.pkl", "rb") as ids_file:
         return pickle.load(ids_file)
 
 
-def checkpoint_sparse_samples(samples_df, dataset):
-    X = TfidfVectorizer().fit_transform(samples_df["text"])
-    y = MultiLabelBinarizer(sparse_output=True).fit_transform(samples_df["labels_ids"])
-    dump_svmlight_file(X, y=y, f=f"./resource/dataset/{dataset}/train_v1.txt", multilabel=True)
-
-
-def generate_sparse_features(dataset, fold_idx, split):
+def prepare_data(dataset, fold_idx, split):
     ids = load_ids(dataset, fold_idx, split)
-    with open(f"./resource/dataset/{dataset}/samples.pkl", "rb") as samples_file:
+    with open(f"resource/dataset/{dataset}/samples.pkl", "rb") as samples_file:
         samples_df = pd.DataFrame(pickle.load(samples_file))
     samples_df = samples_df[samples_df["idx"].isin(ids)]
-    checkpoint_sparse_samples(samples_df, dataset)
+    if split == "train":
+        checkpoint_sparse_samples(samples_df, dataset)
+
+    checkpoint_samples(samples_df, dataset, split)
+
+def checkpoint_sparse_samples(samples_df, dataset):
+    print('Preprocessing sparse features')
+    X = TfidfVectorizer().fit_transform(samples_df["text"])
+    y = MultiLabelBinarizer(sparse_output=True).fit_transform(samples_df["labels_ids"])
+    dump_svmlight_file(X, y=y, f=f"resource/dataset/{dataset}/train_v1.txt", multilabel=True)
+
+
+def checkpoint_samples(samples_df, dataset, split):
+    print('Preprocessing raw texts.')
+    dataset_dir = f"resource/dataset/{dataset}/"
+    samples_df["text"] = samples_df["text"].apply(lambda text: text.replace("\n", " "))
+    samples_df["text"].to_csv(f"{dataset_dir}{split}_raw_texts.txt", header=False, index=False)
+
+    samples_df["labels_ids"] = samples_df["labels_ids"].apply(lambda labels_ids: " ".join([str(idx) for idx in labels_ids]))
+    samples_df["labels_ids"].to_csv(f"{dataset_dir}{split}_labels.txt", header=False, index=False)
 
 
 if __name__ == '__main__':
     dataset = args.dataset
     fold = args.fold
     print('Preprocessing sparse features')
-    generate_sparse_features(dataset, fold, "train")
+    prepare_data(dataset, fold, "train")
+    prepare_data(dataset, fold, "test")
 
     mlb = build_tree_by_level(f'./resource/dataset/{dataset}/train_v1.txt',
                               f'./resource/dataset/{dataset}/train_labels.txt',

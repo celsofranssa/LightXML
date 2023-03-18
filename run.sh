@@ -2,7 +2,7 @@ source ~/projects/venvs/LightXML/bin/activate
 export PYTHONPATH=$PATHONPATH:~/projects/LightXML/
 
 DATA=Amazon-670k
-FOLD=0
+FOLD=1
 
 for i in 0 1 2
     do

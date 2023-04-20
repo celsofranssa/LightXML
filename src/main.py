@@ -176,7 +176,7 @@ if __name__ == '__main__':
                          use_swa=args.swa, swa_warmup_epoch=args.swa_warmup, swa_update_step=args.swa_step)
 
     if args.eval_model and args.dataset in ['Wiki-500k', 'Amazon-670k']:
-        print(f'load models/model-{get_exp_name()}.bin')
+        print(f'/resource/model_checkpoint/model{get_exp_name()}.bin')
         testloader = DataLoader(MDataset(df, 'test', model.get_fast_tokenizer(), label_map, args.max_len, 
                                          candidates_num=args.group_y_candidate_num),
                                 batch_size=256, num_workers=0, 

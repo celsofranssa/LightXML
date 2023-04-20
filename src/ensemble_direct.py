@@ -9,21 +9,21 @@ parser.add_argument('--model1', type=str, required=False, default='')
 parser.add_argument('--model2', type=str, required=False, default='')
 parser.add_argument('--model3', type=str, required=False, default='')
 
-parser.add_argument('--dataset', type=str, required=False, default='eurlex4k')
+parser.add_argument('--dataset', type=str, required=False, default='')
 
 args = parser.parse_args()
 
 if __name__ == '__main__':
-    using_group = args.dataset in ['wiki500k', 'amazon670k']
+    using_group = args.dataset in ['Wiki-500k', 'Amazon-670k']
     model_labels, model_scores = [], []
 
     models = [args.model1, args.model2, args.model3]
     models = [i for i in models if i != '']
     for model in models:
         print(f'loading {model}')
-        model_scores.append(np.load(f'./results/{model}-scores.npy', allow_pickle=True))
+        model_scores.append(np.load(f'./resource/prediction/{model}-scores.npy', allow_pickle=True))
         if using_group:
-            model_labels.append(np.load(f'./results/{model}-labels.npy', allow_pickle=True))
+            model_labels.append(np.load(f'./resource/prediction/{model}-labels.npy', allow_pickle=True))
     
     df, label_map = createDataCSV(args.dataset)
     print(f'load {args.dataset} dataset with '

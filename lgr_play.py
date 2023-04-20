@@ -6,6 +6,8 @@ import scipy
 import torch
 from ranx import evaluate, Run, Qrels
 from torch.utils.data import DataLoader
+import tqdm
+
 from src.dataset import MDataset, createDataCSV
 
 from src.model import LightXML
@@ -57,10 +59,12 @@ def filter_labels(labels, cls, label_cls):
             filtered_labels = filtered_labels + " " + label
     return filtered_labels
 
+
 def checkpoint_results(results, dataset, model):
     pd.DataFrame(results).to_csv(
         f"./resource/result/{model}_{dataset}.rts",
         sep='\t', index=False, header=True)
+
 
 def mean_confidence_interval(data, confidence=0.95):
     a = 1.0 * np.array(data)
@@ -68,6 +72,7 @@ def mean_confidence_interval(data, confidence=0.95):
     m, se = np.mean(a), scipy.stats.sem(a)
     h = se * scipy.stats.t.ppf((1 + confidence) / 2., n - 1)
     return f"{round(100 * m, 1)}({round(100 * h, 1)})"
+
 
 def get_ic(model, dataset):
     print(f"IC for {model} - {dataset}")
@@ -77,6 +82,7 @@ def get_ic(model, dataset):
         cls_df = result_df[result_df["cls"] == cls]
         for metric in ['mrr@1', 'mrr@5', 'mrr@10', 'ndcg@1', 'ndcg@5', 'ndcg@10']:
             print(f"{metric}: {mean_confidence_interval(cls_df[metric])}")
+
 
 def eval(dataset, folds):
     results = []
@@ -148,13 +154,84 @@ def eval(dataset, folds):
             result["cls"] = cls
             results.append(result)
 
+    checkpoint_results(results, dataset, model="LightXML")
+    print(f"Results\n{pd.DataFrame(results)}\n")
+
+
+def direct_ensemble(dataset, folds):
+    results = []
+    text_cls = load_text_cls(dataset)
+    label_cls = load_label_cls(dataset)
+    metrics = get_metrics(["mrr", "recall", "ndcg", "precision", "hit_rate"], [1, 5, 10])
+
+    for fold_idx in folds:
+        print(f"Evaluating fold {fold_idx}")
+
+        model_labels, model_scores = [], []
+        models = [f"{dataset}_t0", f"{dataset}_t1", f"{dataset}_t2"]
+        for model in models:
+            print(f'loading {model}')
+            model_scores.append(np.load(f'./resource/prediction/fold_{fold_idx}/{model}-scores.npy', allow_pickle=True))
+            model_labels.append(np.load(f'./resource/prediction/fold_{fold_idx}/{model}-labels.npy', allow_pickle=True))
+
+        df, label_map = createDataCSV(dataset, fold=fold_idx)
+        print(f'load {dataset} dataset with '
+              f'{len(df[df.dataType == "train"])} train {len(df[df.dataType == "test"])} test with {len(label_map)} labels done')
+
+        df = df[df.dataType == 'test']
+        texts_map = get_texts_map(dataset, fold_idx=fold_idx, split="test")
+        print(f"Evaluating")
+        for cls in ["all", "head", "tail"]:
+            relevance_map = {}
+            ranking = {}
+            for index, labels in enumerate(df.label.values):
+                labels = filter_labels(labels, cls, label_cls)
+                if cls in text_cls[texts_map[index]]:
+                    true_labels = set([label_map[i] for i in labels.split()])
+                    t = {}
+                    for true_label in true_labels:
+                        t[f"label_{true_label}"] = 1.0
+                    relevance_map[f"text_{index}"] = t
+
+                    pred_labels = {}
+                    for j in range(len(models)):
+                        for l, s in sorted(list(zip(model_labels[j][index], model_scores[j][index])), key=lambda x: x[1],
+                                           reverse=True):
+                            if l in pred_labels:
+                                pred_labels[l] += s
+                            else:
+                                pred_labels[l] = s
+
+                    pred_labels = [k for k, v in sorted(pred_labels.items(), key=lambda item: item[1], reverse=True)]
+
+                    p = {}
+                    for pst, pred_label in enumerate(pred_labels):
+                        p[f"label_{pred_label}"] = 1.0 / (pst + 1)
+                    ranking[f"text_{index}"] = p if len(p) > 0 else {"label_-1": 0.0}
+
+            result = evaluate(
+                Qrels(
+                    {key: value for key, value in relevance_map.items() if key in ranking.keys()}
+                ),
+                Run(ranking),
+                metrics
+            )
+
+            result = {k: round(v, 3) for k, v in result.items()}
+            result["fold"] = fold_idx
+            result["cls"] = cls
+            results.append(result)
+
 
     checkpoint_results(results, dataset, model="LightXML")
     print(f"Results\n{pd.DataFrame(results)}\n")
 
 
-if __name__ == '__main__':
 
-    dataset = "Wiki10-31k"
-    eval(dataset, folds=[0, 1, 2, 3, 4])
+
+if __name__ == '__main__':
+    dataset = "Amazon-670k"
+    # direct_ensemble(dataset, folds=[0,1])
+    # eval(dataset, folds=[0, 1, 2, 3, 4])
+
     get_ic("LightXML", dataset)

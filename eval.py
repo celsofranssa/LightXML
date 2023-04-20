@@ -84,7 +84,8 @@ def get_ranking(predicted_labels, texts_map, text_cls, label_cls, cls):
 
 def load_prediction(dataset, fold_idx):
     print("Loading prediction")
-    return np.load(f"resource/prediction/fold_{fold_idx}/LightXML_{dataset}.npy", allow_pickle=True)
+    return np.load(f'./resource/prediction/fold_{fold_idx}/{model}-labels.npy', allow_pickle=True),\
+           np.load(f'./resource/prediction/fold_{fold_idx}/{model}-scores.npy', allow_pickle=True)
 
 def checkpoint_results(results, dataset, model):
     pd.DataFrame(results).to_csv(
@@ -160,7 +161,7 @@ def get_result(dataset, model, folds):
 
 
 if __name__ == '__main__':
-    dataset = "Eurlex-4k"
+    dataset = "Amazon-670k"
     model = "LightXML"
     get_result(dataset, model, folds=[0])
     # get_ic(model, dataset)

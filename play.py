@@ -146,9 +146,9 @@ def get_result(dataset, folds, metrics, thresholds):
                 text_idx = texts_map[index]
                 if cls in text_cls[text_idx]:
                     true_labels = set([label_map[i] for i in labels.split()])
-                    t = {}
-                    for true_label in true_labels:
-                        t[f"label_{true_label}"] = 1.0
+                    # t = {}
+                    # for true_label in true_labels:
+                    #     t[f"label_{true_label}"] = 1.0
                     #relevance_map[f"text_{index}"] = t
 
                     logits = [torch.sigmoid(predicts[i][index]) for i in range(len(berts))]

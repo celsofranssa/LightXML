@@ -96,6 +96,18 @@ def get_ic(model, dataset, metrics, thresholds):
     print(s)
 
 
+def load_labels_map(dataset):
+    labels_map = {}
+    with open(f"./resource/dataset/{dataset}/samples.pkl", "rb") as samples_file:
+        samples = pickle.load(samples_file)
+        for sample in samples:
+            for labels_idx, label in zip(sample["labels_ids"], sample["labels"]):
+                label = label.replade("\n", "")
+                labels_map[label] = labels_idx
+
+    return labels_map
+
+
 # def eval(dataset, folds):
 def get_result(dataset, folds, metrics, thresholds):
     results = []
@@ -109,6 +121,7 @@ def get_result(dataset, folds, metrics, thresholds):
         rankings[fold_idx] = {}
         print(f"Evaluating fold {fold_idx}")
         df, label_map = createDataCSV(dataset, fold=fold_idx)
+        label_map = load_labels_map(dataset)
         predicts = []
         berts = ['bert-base', 'roberta', 'xlnet']
 
@@ -138,7 +151,7 @@ def get_result(dataset, folds, metrics, thresholds):
 
         print(f"Evaluating")
         for cls in ["tail", "head"]:
-            #relevance_map = {}
+            # relevance_map = {}
             rankings[fold_idx][cls] = {}
             ranking = {}
             for index, labels in enumerate(df.label.values):
@@ -149,7 +162,7 @@ def get_result(dataset, folds, metrics, thresholds):
                     # t = {}
                     # for true_label in true_labels:
                     #     t[f"label_{true_label}"] = 1.0
-                    #relevance_map[f"text_{index}"] = t
+                    # relevance_map[f"text_{index}"] = t
 
                     logits = [torch.sigmoid(predicts[i][index]) for i in range(len(berts))]
                     logits.append(sum(logits))
@@ -243,6 +256,6 @@ if __name__ == '__main__':
     metrics = ["ndcg", "precision"]
     thresholds = [1, 5, 10, 7]
     get_result(dataset, folds=folds, metrics=metrics, thresholds=thresholds)
-    #eval_ranking(model, dataset, folds=folds, eval_metrics=metrics, thresholds=thresholds)
+    # eval_ranking(model, dataset, folds=folds, eval_metrics=metrics, thresholds=thresholds)
 
-    #get_ic(model, dataset, metrics, thresholds)
+    # get_ic(model, dataset, metrics, thresholds)

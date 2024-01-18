@@ -103,7 +103,6 @@ def get_result(dataset, folds, metrics, thresholds):
     text_cls = load_text_cls(dataset)
     label_cls = load_label_cls(dataset)
     metrics = get_metrics(metrics, thresholds)
-    relevance_map = load_relevance_map(dataset)
 
     for fold_idx in folds:
         rankings[fold_idx] = {}
@@ -138,18 +137,17 @@ def get_result(dataset, folds, metrics, thresholds):
 
         print(f"Evaluating")
         for cls in ["tail", "head"]:
-            #relevance_map = {}
+            relevance_map = {}
             rankings[fold_idx][cls] = {}
             ranking = {}
             for index, labels in enumerate(df.label.values):
                 labels = filter_labels(labels, cls, label_cls)
-                text_idx = texts_map[index]
-                if cls in text_cls[text_idx]:
+                if cls in text_cls[texts_map[index]]:
                     true_labels = set([label_map[i] for i in labels.split()])
                     t = {}
                     for true_label in true_labels:
                         t[f"label_{true_label}"] = 1.0
-                    #relevance_map[f"text_{index}"] = t
+                    relevance_map[f"text_{index}"] = t
 
                     logits = [torch.sigmoid(predicts[i][index]) for i in range(len(berts))]
                     logits.append(sum(logits))
@@ -158,7 +156,7 @@ def get_result(dataset, folds, metrics, thresholds):
                     p = {}
                     for pst, pred_label in enumerate(logits[-1]):
                         p[f"label_{pred_label}"] = 1.0 / (pst + 1)
-                    ranking[f"text_{text_idx}"] = p if len(p) > 0 else {"label_-1": 0.0}
+                    ranking[f"text_{index}"] = p if len(p) > 0 else {"label_-1": 0.0}
 
             result = evaluate(
                 Qrels(
@@ -216,7 +214,7 @@ def eval_ranking(model, dataset, folds, eval_metrics, thresholds):
     metrics = get_metrics(eval_metrics, thresholds)
     for fold_idx in folds:
         texts_map = get_texts_map(dataset, fold_idx=fold_idx, split="test")
-        for cls in ["head", "tail"]:
+        for cls in ["tail", "head"]:
             logging.info(f"Evaluating {cls} ranking")
             ranking = load_ranking(model, dataset, fold_idx)
             ranking = ranking[cls]
@@ -239,10 +237,10 @@ def eval_ranking(model, dataset, folds, eval_metrics, thresholds):
 if __name__ == '__main__':
     dataset = "Eurlex-4k"
     model = "LightXML"
-    folds = [0]
+    folds = [0, 1, 2, 3, 4]
     metrics = ["ndcg", "precision"]
     thresholds = [1, 5, 10, 7]
     get_result(dataset, folds=folds, metrics=metrics, thresholds=thresholds)
-    #eval_ranking(model, dataset, folds=folds, eval_metrics=metrics, thresholds=thresholds)
+    eval_ranking(model, dataset, folds=folds, eval_metrics=metrics, thresholds=thresholds)
 
-    #get_ic(model, dataset, metrics, thresholds)
+    get_ic(model, dataset, metrics, thresholds)

@@ -102,7 +102,7 @@ def load_labels_map(dataset):
         samples = pickle.load(samples_file)
         for sample in samples:
             for labels_idx, label in zip(sample["labels_ids"], sample["labels"]):
-                label = label.replade("\n", "")
+                label = label.replace("\n", "")
                 labels_map[label] = labels_idx
 
     return labels_map

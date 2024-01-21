@@ -1,5 +1,6 @@
 import logging
 import pickle
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -66,6 +67,12 @@ def checkpoint_results(results, dataset, model):
         sep='\t', index=False, header=True)
 
 
+def checkpoint_time(times, dataset, model="LightXML"):
+    with open(f"resource/time/{dataset}_prediction_time.txt", "w") as f:
+        for time in times:
+            f.write(f"{time}\n")
+
+
 def checkpoint_ranking(ranking, model, dataset, fold_idx):
     ranking_dir = f"resource/ranking/{model}_{dataset}/"
     Path(ranking_dir).mkdir(parents=True, exist_ok=True)
@@ -116,12 +123,13 @@ def get_result(dataset, folds, metrics, thresholds):
     label_cls = load_label_cls(dataset)
     metrics = get_metrics(metrics, thresholds)
     relevance_map = load_relevance_map(dataset)
-
+    times = []
     for fold_idx in folds:
+        time_start = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         rankings[fold_idx] = {}
         print(f"Evaluating fold {fold_idx}")
         df, label_map = createDataCSV(dataset, fold=fold_idx)
-        label_map = load_labels_map(dataset)
+        t_label_map = load_labels_map(dataset)
         predicts = []
         berts = ['bert-base', 'roberta', 'xlnet']
 
@@ -185,9 +193,11 @@ def get_result(dataset, folds, metrics, thresholds):
             result["cls"] = cls
             rankings[fold_idx][cls] = ranking
             results.append(result)
-
+        time_end = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        times.append(f"{time_start},{time_end}")
         checkpoint_ranking(rankings[fold_idx], model="LightXML", dataset=dataset, fold_idx=fold_idx)
 
+    checkpoint_time(times, dataset, model="LightXML")
     checkpoint_results(results, dataset, model="LightXML")
     print(f"Results\n{pd.DataFrame(results)}\n")
 
@@ -249,13 +259,89 @@ def eval_ranking(model, dataset, folds, eval_metrics, thresholds):
     checkpoint_results(results, dataset, model)
 
 
+def re_ranker(dataset, model, folds, eval_metrics, thresholds):
+    results = []
+    for fold_idx in folds:
+        rankings = {}
+        texts_map = get_texts_map(dataset, fold_idx, split="test")
+        relevance_map = load_relevance_map(dataset)
+        metrics = get_metrics(eval_metrics, thresholds)
+
+        #
+        labels_cls = load_label_cls(dataset)
+        texts_cls = load_text_cls(dataset)
+
+        _, label_map = createDataCSV(dataset, fold=fold_idx)
+
+        inv_label_map = {}
+        for label, label_idx in label_map.items():
+            inv_label_map[label_idx] = int(label)
+
+        tail_head_ranking = load_ranking(model, dataset, fold_idx)
+
+        for cls in ["tail", "head"]:
+            new_ranking = {}
+            for tex_idx, labels_scores in tail_head_ranking["tail"].items():
+                new_tex_idx = texts_map[int(tex_idx.split("_")[-1])]
+                if cls in texts_cls[new_tex_idx]:
+                    if f"text_{new_tex_idx}" not in new_ranking:
+                        new_ranking[f"text_{new_tex_idx}"] = {}
+                    for label_idx, score in labels_scores.items():
+                        label_idx = int(label_idx.split("_")[-1])
+                        if label_idx in inv_label_map:
+                            new_label_idx = inv_label_map[label_idx]
+                            if cls in labels_cls[new_label_idx]:
+                                new_ranking[f"text_{new_tex_idx}"][f"label_{new_label_idx}"] = score
+                    if len(new_ranking[f"text_{new_tex_idx}"]) == 0:
+                        new_ranking[f"text_{new_tex_idx}"]["label_-1"] = 0.0
+
+            for tex_idx, labels_scores in tail_head_ranking["head"].items():
+                new_tex_idx = texts_map[int(tex_idx.split("_")[-1])]
+                if cls in texts_cls[new_tex_idx]:
+                    if f"text_{new_tex_idx}" not in new_ranking:
+                        new_ranking[f"text_{new_tex_idx}"] = {}
+                    for label_idx, score in labels_scores.items():
+                        label_idx = int(label_idx.split("_")[-1])
+                        if label_idx in inv_label_map:
+                            new_label_idx = inv_label_map[label_idx]
+                            if cls in labels_cls[new_label_idx]:
+                                new_ranking[f"text_{new_tex_idx}"][f"label_{new_label_idx}"] = score
+                    if len(new_ranking[f"text_{new_tex_idx}"]) == 0:
+                        new_ranking[f"text_{new_tex_idx}"]["label_-1"] = 0.0
+
+            result = evaluate(
+                Qrels(
+                    {key: value for key, value in relevance_map.items() if key in new_ranking.keys()}
+                ),
+                Run(new_ranking),
+                metrics
+            )
+            result = {k: round(v, 3) for k, v in result.items()}
+            result["fold_idx"] = fold_idx
+            result["cls"] = cls
+            results.append(result)
+            rankings[cls] = new_ranking
+
+        checkpoint_ranking(rankings, model="LightXML", dataset=dataset, fold_idx=fold_idx)
+
+    print(pd.DataFrame(results))
+    checkpoint_results(results, dataset, model="LightXML")
+    print(f"Results\n{pd.DataFrame(results)}\n")
+
+
 if __name__ == '__main__':
-    dataset = "Eurlex-4k"
+    dataset = "Amazon-670k"
     model = "LightXML"
-    folds = [0]
-    metrics = ["ndcg", "precision"]
-    thresholds = [1, 5, 10, 7]
-    get_result(dataset, folds=folds, metrics=metrics, thresholds=thresholds)
+    folds = [0, 1, 2]
+    eval_metrics = ["ndcg", "precision"]
+    thresholds = [1, 5, 10, 6]
+    get_result(dataset, folds=folds, metrics=eval_metrics, thresholds=thresholds)
+
+
+    # re_ranker(dataset, model, folds=folds, eval_metrics=eval_metrics, thresholds=thresholds)
+
+
+
     # eval_ranking(model, dataset, folds=folds, eval_metrics=metrics, thresholds=thresholds)
 
-    # get_ic(model, dataset, metrics, thresholds)
+    # get_ic(model, dataset, eval_metrics, thresholds)

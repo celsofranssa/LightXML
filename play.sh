@@ -1,3 +1,3 @@
 source venvs/bin/activate
-export PYTHONPATH=$PATHONPATH:~/projects/LightXML/
+export PYTHONPATH=$PATHONPATH:$pwd
 python play.py

@@ -332,7 +332,7 @@ def re_ranker(dataset, model, folds, eval_metrics, thresholds):
 if __name__ == '__main__':
     dataset = "Amazon-670k"
     model = "LightXML"
-    folds = [0, 1, 2]
+    folds = [0, 1]
     eval_metrics = ["ndcg", "precision"]
     thresholds = [1, 5, 10, 6]
     get_result(dataset, folds=folds, metrics=eval_metrics, thresholds=thresholds)

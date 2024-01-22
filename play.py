@@ -328,14 +328,40 @@ def re_ranker(dataset, model, folds, eval_metrics, thresholds):
     checkpoint_results(results, dataset, model="LightXML")
     print(f"Results\n{pd.DataFrame(results)}\n")
 
+def get_time_stats(dataset):
+    print(dataset)
+    times = []
+
+    def mean_confidence_interval(data, confidence=0.95):
+        a = 1.0 * np.array(data)
+        n = len(a)
+        m, se = np.mean(a), scipy.stats.sem(a)
+        h = se * scipy.stats.t.ppf((1 + confidence) / 2., n - 1)
+        return f"{round(m, 5)}({round(h, 5)})"
+
+    predict_time = 0
+    with open(f"resource/time/{dataset}_prediction_time.txt") as time_file:
+        for time in time_file:
+            time = time.strip()
+
+            s, e = time.split(",")
+            s = datetime.strptime(s.strip(), "%Y-%m-%d %H:%M:%S")
+            e = datetime.strptime(e.strip(), "%Y-%m-%d %H:%M:%S")
+
+            times.append((e - s).total_seconds() / 3600)
+
+    print(mean_confidence_interval(times))
+
+
 
 if __name__ == '__main__':
-    dataset = "Amazon-670k"
+    dataset = "Eurlex-4k"
     model = "LightXML"
     folds = [0, 1]
     eval_metrics = ["ndcg", "precision"]
     thresholds = [1, 5, 10, 6]
     get_result(dataset, folds=folds, metrics=eval_metrics, thresholds=thresholds)
+    get_time_stats(dataset)
 
 
     # re_ranker(dataset, model, folds=folds, eval_metrics=eval_metrics, thresholds=thresholds)

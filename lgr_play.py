@@ -231,7 +231,7 @@ def direct_ensemble(dataset, folds):
 
 if __name__ == '__main__':
     dataset = "Amazon-670k"
-    # direct_ensemble(dataset, folds=[0,1])
+    #direct_ensemble(dataset, folds=[0,1])
     # eval(dataset, folds=[0, 1, 2, 3, 4])
 
     get_ic("LightXML", dataset)

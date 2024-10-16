@@ -78,7 +78,7 @@ def get_ranking(predicted_labels, texts_map, text_cls, label_cls, cls):
             if len(labels_scores) > 0:
                 ranking[f"text_{text_idx}"] = labels_scores
             else:
-                ranking[f"text_{text_idx}"] = {"label_-1": 0.0}
+                ranking[f"text_{text_idx}"] = {"label_-1": 0.0} # insert virtual label if the model do not predict any
     return ranking
 
 

@@ -123,9 +123,8 @@ def get_result(dataset, folds, metrics, thresholds):
     label_cls = load_label_cls(dataset)
     metrics = get_metrics(metrics, thresholds)
     relevance_map = load_relevance_map(dataset)
-    times = []
+
     for fold_idx in folds:
-        time_start = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         rankings[fold_idx] = {}
         print(f"Evaluating fold {fold_idx}")
         df, label_map = createDataCSV(dataset, fold=fold_idx)
@@ -193,11 +192,9 @@ def get_result(dataset, folds, metrics, thresholds):
             result["cls"] = cls
             rankings[fold_idx][cls] = ranking
             results.append(result)
-        time_end = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        times.append(f"{time_start},{time_end}")
         checkpoint_ranking(rankings[fold_idx], model="LightXML", dataset=dataset, fold_idx=fold_idx)
 
-    checkpoint_time(times, dataset, model="LightXML")
+
     checkpoint_results(results, dataset, model="LightXML")
     print(f"Results\n{pd.DataFrame(results)}\n")
 
@@ -354,20 +351,26 @@ def get_time_stats(dataset):
 
 
 
+def main():
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description="Evaluation script for a model on a dataset.")
+    parser.add_argument('--dataset', type=str, required=True, help='Name of the dataset (e.g., AmazonCat-13k)')
+    parser.add_argument('--folds', nargs='+', type=int, default=[5], help='List of folds')
+    parser.add_argument('--metrics', nargs='+', default=["ndcg", "precision"], help='List of metrics to evaluate (default: ["ndcg", "precision"])')
+    parser.add_argument('--thresholds', nargs='+', type=int, default=[1, 3, 5, 10], help='List of thresholds for metrics (default: [1, 3, 5, 10])')
+
+    args = parser.parse_args()
+
+    # Use the arguments
+    dataset = args.dataset
+    folds = args.folds
+    metrics = args.metrics
+    thresholds = args.thresholds
+
+    get_result(dataset, folds=folds, metrics=metrics, thresholds=thresholds)
+
+
+
 if __name__ == '__main__':
-    dataset = "Eurlex-4k"
-    model = "LightXML"
-    folds = [0, 1]
-    eval_metrics = ["ndcg", "precision"]
-    thresholds = [1, 5, 10, 6]
-    get_result(dataset, folds=folds, metrics=eval_metrics, thresholds=thresholds)
-    get_time_stats(dataset)
+    main()
 
-
-    # re_ranker(dataset, model, folds=folds, eval_metrics=eval_metrics, thresholds=thresholds)
-
-
-
-    # eval_ranking(model, dataset, folds=folds, eval_metrics=metrics, thresholds=thresholds)
-
-    # get_ic(model, dataset, eval_metrics, thresholds)

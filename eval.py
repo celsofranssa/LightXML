@@ -1,4 +1,6 @@
 import pickle
+import argparse
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -87,17 +89,31 @@ def load_prediction(dataset, fold_idx):
     return np.load(f'./resource/prediction/fold_{fold_idx}/{model}-labels.npy', allow_pickle=True),\
            np.load(f'./resource/prediction/fold_{fold_idx}/{model}-scores.npy', allow_pickle=True)
 
-def checkpoint_results(results, dataset, model):
-    pd.DataFrame(results).to_csv(
-        f"resource/result/{model}_{dataset}.rts",
+# def checkpoint_results(results, dataset, model):
+#     pd.DataFrame(results).to_csv(
+#         f"resource/result/{model}_{dataset}.rts",
+#         sep='\t', index=False, header=True)
+#
+#
+# def checkpoint_rankings(rankings, dataset, model):
+#     with open(
+#             f"resource/ranking/{model}_{dataset}.rnk",
+#             "wb") as rankings_file:
+#         pickle.dump(rankings, rankings_file)
+
+def checkpoint_fold_results(result, result_dir, dataset, model,fold_idx):
+    Path(result_dir).mkdir(parents=True, exist_ok=True)
+    print(f"Saving result for fold {fold_idx} on {result_dir}")
+    pd.DataFrame(result).to_csv(
+        f"{result_dir}{model}_{dataset}_{fold_idx}.rts",
         sep='\t', index=False, header=True)
 
-
-def checkpoint_rankings(rankings, dataset, model):
-    with open(
-            f"resource/ranking/{model}_{dataset}.rnk",
-            "wb") as rankings_file:
-        pickle.dump(rankings, rankings_file)
+def checkpoint_ranking(ranking, model, dataset, fold_idx):
+    ranking_dir = f"resource/ranking/{model}_{dataset}/"
+    Path(ranking_dir).mkdir(parents=True, exist_ok=True)
+    print(f"Saving ranking {fold_idx} on {ranking_dir}")
+    with open(f"{ranking_dir}{model}_{dataset}_{fold_idx}.rnk", "wb") as ranking_file:
+        pickle.dump(ranking, ranking_file)
 
 
 def mean_confidence_interval(data, confidence=0.95):
@@ -120,8 +136,7 @@ def get_ic(model, dataset):
 
 def get_result(dataset, model, folds):
 
-    metrics = _get_metrics(["precision"], [1, 5, 10])
-    #metrics = _get_metrics(["mrr", "recall", "ndcg", "precision", "hit_rate"], [1, 5, 10])
+    metrics = _get_metrics(["ndcg", "precision"], [1, 3, 5, 10])
     relevance_map = _load_relevance_map(dataset)
 
     # cls
@@ -154,10 +169,32 @@ def get_result(dataset, model, folds):
 
             results.append(result)
             rankings[fold_idx][cls] = ranking
+
+        result_dir = f"resource/result/{model}_{dataset}/"
+        checkpoint_fold_results(results, result_dir, dataset, model, fold_idx)
+        checkpoint_ranking(rankings[fold_idx], model, dataset, fold_idx)
     print(pd.DataFrame(results))
 
-    checkpoint_results(results, dataset, model)
-    #checkpoint_rankings(rankings, dataset, model)
+
+
+
+def main():
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description="Evaluation script for a model on a dataset.")
+    parser.add_argument('--dataset', type=str, required=True, help='Name of the dataset (e.g., AmazonCat-13k)')
+    parser.add_argument('--model', type=str, required=True, help='Name of the model (e.g., LightXML)')
+    parser.add_argument('--folds', nargs='+', type=int, default=[5], help='List of folds')
+    parser.add_argument('--metrics', nargs='+', default=["ndcg", "precision"], help='List of metrics to evaluate (default: ["ndcg", "precision"])')
+    parser.add_argument('--thresholds', nargs='+', type=int, default=[1, 3, 5, 10], help='List of thresholds for metrics (default: [1, 3, 5, 10])')
+
+    args = parser.parse_args()
+
+    get_result(dataset=args.dataset, model=args.model, folds=args.folds)
+
+
+
+if __name__ == '__main__':
+    main()
 
 
 if __name__ == '__main__':

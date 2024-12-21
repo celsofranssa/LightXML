@@ -30,5 +30,5 @@ RUN python3 -m nltk.downloader punkt
 
 RUN git clone https://github.com/NVIDIA/apex;
 WORKDIR /opt/project/apex
-RUN pip install -v --disable-pip-version-check --no-cache-dir --global-option="--cpp_ext" --global-option="--cuda_ext" ./;
+RUN pip install -v --disable-pip-version-check --no-cache-dir --global-option="--cpp_ext" --global-option="--cuda_ext" ./
 WORKDIR /opt/project

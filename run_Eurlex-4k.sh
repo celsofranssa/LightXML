@@ -1,5 +1,6 @@
 data=Eurlex-4k
 fold_idx=5
+model=LightXML
 
 # Fitting
 time_start=$(date '+%Y-%m-%d %H:%M:%S')
@@ -17,7 +18,7 @@ echo "$time_start,$time_end" > resource/time/${model}_${data}_predict_${fold_idx
 
 # Evaluating
 time_start=$(date '+%Y-%m-%d %H:%M:%S')
-python3 eval.py --dataset $data --model $model --fold_idx $fold_idx
+python3 eval.py --dataset $data --model $model --folds $[fold_idx]
 time_end=$(date '+%Y-%m-%d %H:%M:%S')
 echo "$time_start,$time_end" > resource/time/${model}_${data}_eval_${fold_idx}.tmr
 
